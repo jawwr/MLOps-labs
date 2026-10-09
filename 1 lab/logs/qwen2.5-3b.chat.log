@@ -1,0 +1,5 @@
+2026-10-09 19:43:33 INFO model=qwen2.5-3b prompt=chat temperature=0.2 max_tokens=1024
+2026-10-09 19:43:43 INFO user: Привет, кто ты?
+2026-10-09 19:43:43 INFO HTTP Request: POST http://127.0.0.1:8080/v1/chat/completions "HTTP/1.1 200 OK"
+2026-10-09 19:43:44 INFO assistant (1.4s): Я - финансовый консультант, готов помочь с вашими финансовыми вопросами.
+2026-10-09 20:28:35 INFO model=qwen2.5-3b prompt=chat temperature=0.2 max_tokens=1024

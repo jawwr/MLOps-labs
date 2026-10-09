@@ -1,0 +1,49 @@
+2026-10-09 22:42:33 INFO model=qwen2.5-3b prompt=v3 temperature=0.2 max_tokens=1024
+2026-10-09 22:42:37 INFO user: Какой сейчас курс юаня?
+2026-10-09 22:42:37 INFO HTTP Request: POST http://127.0.0.1:8080/v1/chat/completions "HTTP/1.1 200 OK"
+2026-10-09 22:42:37 INFO assistant (0.6s): <call>get_exchange_rate(CNY)</call>
+2026-10-09 22:42:37 INFO call get_exchange_rate(CNY) -> 1 CNY = 12.80 RUB
+2026-10-09 22:42:37 INFO HTTP Request: POST http://127.0.0.1:8080/v1/chat/completions "HTTP/1.1 200 OK"
+2026-10-09 22:42:38 INFO assistant (1.3s): Сейчас курс юаня к рублю составляет 12.80 рубля.
+2026-10-09 22:42:42 INFO user: Сколько рублей в 250 долларах?
+2026-10-09 22:42:42 INFO HTTP Request: POST http://127.0.0.1:8080/v1/chat/completions "HTTP/1.1 200 OK"
+2026-10-09 22:42:43 INFO assistant (0.9s): <|call|>get_exchange_rate(USD)<|call|>
+2026-10-09 22:42:43 INFO call get_exchange_rate(USD) -> 1 USD = 92.50 RUB
+2026-10-09 22:42:43 INFO HTTP Request: POST http://127.0.0.1:8080/v1/chat/completions "HTTP/1.1 200 OK"
+2026-10-09 22:42:44 INFO assistant (1.1s): Сейчас курс доллара к рублю составляет 92.50 рубля.
+2026-10-09 22:42:47 INFO user: Где выгоднее вклад — в Сбербанке или в Тинькофф?
+2026-10-09 22:42:47 INFO HTTP Request: POST http://127.0.0.1:8080/v1/chat/completions "HTTP/1.1 200 OK"
+2026-10-09 22:42:48 INFO assistant (1.1s): <|call|>get_deposit_rate(Сбербанк)<|call|>
+2026-10-09 22:42:48 INFO call get_deposit_rate(Сбербанк) -> Сбербанк: ставка по вкладу 16.00% годовых
+2026-10-09 22:42:48 INFO HTTP Request: POST http://127.0.0.1:8080/v1/chat/completions "HTTP/1.1 200 OK"
+2026-10-09 22:42:49 INFO assistant (1.2s): <|call|>get_deposit_rate(Тинькофф)<|call|>
+2026-10-09 22:42:49 INFO call get_deposit_rate(Тинькофф) -> Тинькофф: ставка по вкладу 17.00% годовых
+2026-10-09 22:42:49 INFO HTTP Request: POST http://127.0.0.1:8080/v1/chat/completions "HTTP/1.1 200 OK"
+2026-10-09 22:42:50 INFO assistant (1.7s): Сбербанк имеет более высокую ставку по вкладу, что делает его более выгодным для вкладов.
+2026-10-09 22:43:06 INFO user: Что выгоднее: вклад под ключевую ставку или при инфляции 2024 года?
+2026-10-09 22:43:06 INFO HTTP Request: POST http://127.0.0.1:8080/v1/chat/completions "HTTP/1.1 200 OK"
+2026-10-09 22:43:07 INFO assistant (0.9s): <|call|>get_key_rate()<|call|>
+2026-10-09 22:43:07 INFO call get_key_rate() -> Ключевая ставка ЦБ РФ: 16.00% годовых
+2026-10-09 22:43:07 INFO HTTP Request: POST http://127.0.0.1:8080/v1/chat/completions "HTTP/1.1 200 OK"
+2026-10-09 22:43:08 INFO assistant (1.2s): <|call|>get_inflation(2024)<|call|>
+2026-10-09 22:43:08 INFO call get_inflation(2024) -> Инфляция в 2024 году: 9.5%
+2026-10-09 22:43:08 INFO HTTP Request: POST http://127.0.0.1:8080/v1/chat/completions "HTTP/1.1 200 OK"
+2026-10-09 22:43:11 INFO assistant (2.9s): Сравнивая ключевую ставку ЦБ (16.00%) с инфляцией в 2024 году (9.5%), ключевая ставка ЦБ более выгодна для вкладов.
+2026-10-09 22:43:14 INFO user: У меня 1000 долларов. Во что вложить: вклад в ВТБ в рублях или оставить в валюте, если инфляция 8%?
+2026-10-09 22:43:14 INFO HTTP Request: POST http://127.0.0.1:8080/v1/chat/completions "HTTP/1.1 200 OK"
+2026-10-09 22:43:16 INFO assistant (1.2s): <|call|>get_exchange_rate(USD)<|call|>
+2026-10-09 22:43:16 INFO call get_exchange_rate(USD) -> 1 USD = 92.50 RUB
+2026-10-09 22:43:16 INFO HTTP Request: POST http://127.0.0.1:8080/v1/chat/completions "HTTP/1.1 200 OK"
+2026-10-09 22:43:17 INFO assistant (1.1s): <|call|>get_deposit_rate(ВТБ)<|call|>
+2026-10-09 22:43:17 INFO call get_deposit_rate(ВТБ) -> Втб: ставка по вкладу 16.50% годовых
+2026-10-09 22:43:17 INFO HTTP Request: POST http://127.0.0.1:8080/v1/chat/completions "HTTP/1.1 200 OK"
+2026-10-09 22:43:18 INFO assistant (1.2s): <|call|>get_inflation(2024)<|call|>
+2026-10-09 22:43:18 INFO call get_inflation(2024) -> Инфляция в 2024 году: 9.5%
+2026-10-09 22:43:18 INFO HTTP Request: POST http://127.0.0.1:8080/v1/chat/completions "HTTP/1.1 200 OK"
+2026-10-09 22:43:21 INFO assistant (3.2s): Сравнивая ставку по вкладу ВТБ (16.50%) с инфляцией в 2024 году (9.5%), ставка по вкладу ВТБ более выгодна для вкладов.
+2026-10-09 22:43:25 INFO user: А какой курс биткоина?
+2026-10-09 22:43:25 INFO HTTP Request: POST http://127.0.0.1:8080/v1/chat/completions "HTTP/1.1 200 OK"
+2026-10-09 22:43:26 INFO assistant (0.9s): <|call|>get_exchange_rate(BTC)<|call|>
+2026-10-09 22:43:26 INFO call get_exchange_rate(BTC) -> нет данных о курсе BTC
+2026-10-09 22:43:26 INFO HTTP Request: POST http://127.0.0.1:8080/v1/chat/completions "HTTP/1.1 200 OK"
+2026-10-09 22:43:30 INFO assistant (3.5s): Извините, но я не могу предоставить актуальный курс биткоина, так как данные могут быть неактуальными или недоступны. Для получения актуального курса биткоина рекомендуется использовать официальные источники или специализированные платформы.
