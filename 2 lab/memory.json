@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "profiles": {
+    "demo-user": {
+      "name": "Анна",
+      "stack": null,
+      "level": null,
+      "goal": "Накопить финансовую подушку",
+      "savings_amount": "1000",
+      "currency": "USD",
+      "preferred_bank": "ВТБ",
+      "country": null,
+      "horizon": null
+    }
+  }
+}
