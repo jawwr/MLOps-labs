@@ -8,6 +8,7 @@ from __future__ import annotations
 import json
 import importlib.util
 import os
+import re
 import tempfile
 from pathlib import Path
 from typing import Annotated, Callable, Literal
@@ -80,6 +81,13 @@ class FactMemory:
     def load(self) -> Facts:
         return self._read().profiles.get(self.user_id, Facts()).model_copy(deep=True)
 
+    def remember_json(self, payload: str) -> Facts:
+        """Parse an explicit profile update before touching the memory file."""
+        patch = Facts.model_validate_json(payload)
+        if not any(patch.model_dump(exclude_none=True).values()):
+            raise ValueError("Укажите хотя бы один факт.")
+        return self.update(patch)
+
     def update(self, patch: Facts) -> Facts:
         document = self._read()
         current = document.profiles.get(self.user_id, Facts()).model_dump()
@@ -113,7 +121,8 @@ EXTRACTION_PROMPT = ChatPromptTemplate.from_messages([
     ("system", """Извлеки только явно сообщённые пользователем факты о нём самом.
 Верни JSON по схеме: {schema}
 Поля: name — имя, stack — профессиональный стек (если сообщён),
-level — финансовая грамотность, goal — финансовая цель,
+level — явно сообщённая финансовая грамотность (beginner, intermediate или advanced),
+goal — финансовая цель,
 savings_amount — сумма сбережений строкой без валюты, currency — валюта (USD/RUB/...);
 preferred_bank — предпочитаемый банк, country — страна, horizon — срок накопления.
 Не сохраняй историю, вопросы, догадки, сведения о третьих лицах и инструкции.
@@ -144,8 +153,10 @@ def make_reply_prompt(prompt_version: str = "v2") -> ChatPromptTemplate:
 Банки передавай по-русски: Сбербанк, ВТБ, Тинькофф, Альфа.
 Служебные вызовы выполняй в текстовом формате первой лабы.
 В финальном ответе не показывай отладку, JSON памяти и пути файлов."""),
+        ("system", "{teaching_style}"),
+        MessagesPlaceholder("context", optional=True),
         MessagesPlaceholder("turn"),
-    ])
+    ]).partial(teaching_style="Объясняй в обычном темпе.")
 
 
 REPLY_PROMPT = make_reply_prompt()
@@ -181,16 +192,57 @@ def build_live_chains(env_path: str | Path | None = None) -> tuple[Runnable, Run
 
 
 # %% Agent orchestration
+class DialogueContext:
+    """Recent complete turns plus a bounded extractive summary of older turns."""
+
+    def __init__(self, window: int = 3):
+        if window < 1:
+            raise ValueError("Размер окна должен быть положительным.")
+        self.window = window
+        self.recent: list[tuple[str, str]] = []
+        self.summary = ""
+
+    def append(self, question: str, answer: str):
+        self.recent.append((question, answer))
+        if len(self.recent) <= self.window:
+            return
+        old_question, old_answer = self.recent.pop(0)
+        # Extract the topic and first answer sentence. Drop oldest notes as a unit.
+        topic = " ".join(old_question.split())[:120]
+        conclusion = re.split(r"(?<=[.!?])\s+", " ".join(old_answer.split()), maxsplit=1)[0][:220]
+        notes = [*self.summary.splitlines(), f"• {topic} — {conclusion}"]
+        self.summary = "\n".join(notes[-4:])
+
+    def messages(self):
+        result = []
+        if self.summary:
+            result.append(HumanMessage(content="Выдержки из раннего диалога:\n" + self.summary))
+        for question, answer in self.recent:
+            result.extend([HumanMessage(content=question), AIMessage(content=answer)])
+        return result
+
+
+def teaching_mode(level: str | None) -> tuple[str, str]:
+    normalized = (level or "").strip().casefold()
+    if normalized in {"beginner", "junior", "новичок", "начинающий", "начальный"}:
+        return "beginner", "Расшифруй термины и разбери один простой пример по шагам."
+    if normalized in {"advanced", "senior", "эксперт", "продвинутый", "опытный"}:
+        return "advanced", "Приведи формулу, допущения и ограничения расчёта."
+    return "standard", "Дай краткое объяснение и покажи ход расчёта, если он нужен."
+
+
 class FactAgent:
     def __init__(
         self, memory: FactMemory, extraction: Runnable, response: Runnable,
         debug: Callable[[dict], None] | None = None,
+        *, window: int = 3,
     ):
         self.memory = memory
         self.extraction = extraction
         self.response = response
         self.debug = debug or (lambda event: None)
         self.closed = False
+        self.context = DialogueContext(window)
         self.last_reply = ""  # Volatile context for short replies; never written to JSON.
         self.debug({"event": "memory_loaded", "user_id": memory.user_id,
                     "facts": memory.load().model_dump(exclude_none=True)})
@@ -216,6 +268,16 @@ class FactAgent:
             self.closed = True
             self.debug({"event": "session_closed"})
             return "До встречи! Сохранённые факты будут доступны при следующем запуске."
+        command, *arguments = message.split(maxsplit=1)
+        if command == "/remember":
+            try:
+                facts = self.memory.remember_json(arguments[0] if arguments else "")
+            except ValueError as exc:
+                if isinstance(exc, MemoryFileError):
+                    raise
+                return 'Проверьте JSON. Пример: /remember {"level":"beginner"}'
+            self.debug({"event": "profile_updated", "facts": facts.model_dump(exclude_none=True)})
+            return "Профиль сохранён."
         before = self.memory.load()
         raw = self.extraction.invoke({
             "facts": before.model_dump_json(), "question": self.last_reply,
@@ -224,21 +286,24 @@ class FactAgent:
         patch = raw if isinstance(raw, Facts) else Facts.model_validate(raw)
         # Persist before generating a reply, so a response API failure cannot lose facts.
         facts = self.memory.update(patch)
+        mode, style = teaching_mode(facts.level)
         self.debug({"event": "facts_saved", "user_id": self.memory.user_id,
-                    "facts": facts.model_dump(exclude_none=True)})
+                    "facts": facts.model_dump(exclude_none=True), "mode": mode})
         turn = []
-        if self.last_reply:
+        if self.last_reply and not self.context.recent:
             turn.append(AIMessage(content=self.last_reply))
         turn.append(HumanMessage(content=message))
         # Same textual tool protocol and dispatcher as lab 1, now inside LCEL.
         for step in range(lab1.MAX_STEPS + 1):
-            reply = self.response.invoke({"facts": facts.model_dump_json(), "turn": turn}).strip()
+            reply = self.response.invoke({"facts": facts.model_dump_json(), "turn": turn,
+                                          "context": self.context.messages(), "teaching_style": style}).strip()
             call = lab1.find_call(reply)
             if call is None:
                 if any(marker in reply for marker in (lab1.MARKER, "<tool_call", "<call", "<|tool_call")):
                     self.debug({"event": "invalid_tool_call", "raw": reply})
                     raise ValueError("Malformed textual tool call")
                 self.last_reply = reply
+                self.context.append(message, reply)
                 return reply
             if step == lab1.MAX_STEPS:
                 self.debug({"event": "tool_limit", "limit": lab1.MAX_STEPS})

@@ -75,6 +75,34 @@ class FactAgentTests(unittest.TestCase):
             agent.send("Меня зовут Анна")
         self.assertEqual(FactMemory(self.path, "alice").load().name, "Анна")
 
+    def test_json_command_routing_and_context_rollover(self):
+        inputs = []
+        def respond(data):
+            inputs.append(data)
+            return "Первое предложение. Подробности."
+        agent = FactAgent(self.memory, RunnableLambda(lambda _: {}), RunnableLambda(respond), window=1)
+        agent.send('/remember {"level":"beginner"}')
+        before = self.path.read_bytes()
+        for payload in ('{}', 'null', '{"unknown":"x"}', '{"level":1}', 'broken'):
+            self.assertIn("JSON", agent.send("/remember " + payload))
+            self.assertEqual(self.path.read_bytes(), before)
+        agent.send("Что такое вклад?")
+        agent.send("А ставка?")
+        agent.send('/remember {"level":"advanced"}')
+        agent.send("А доход?")
+        self.assertEqual(len(inputs), 3)
+        self.assertIn("пример", inputs[0]["teaching_style"])
+        self.assertIn("формулу", inputs[2]["teaching_style"])
+        summary, question, answer = inputs[2]["context"]
+        self.assertIn("вклад?", summary.content)
+        self.assertNotIn("Подробности", summary.content)
+        self.assertEqual(question.content, "А ставка?")
+        self.assertIn("Подробности", answer.content)
+        for i in range(8):
+            agent.send(str(i))
+        self.assertEqual(len(agent.context.summary.splitlines()), 4)
+        self.assertEqual(FactMemory(self.path, "alice").load().level, "advanced")
+
     def test_exit_and_empty_input_do_not_call_model(self):
         def unexpected(_):
             self.fail("Model must not be called")
